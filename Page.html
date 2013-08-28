@@ -6,8 +6,8 @@
         body {background-color: #031634; text-align: center; color: #E8DDCB; font-family: Ubuntu, serif; }
         #canvasCenter {
             width: 480px;
-            height:320px;
-            margin: 0px auto;
+            height: 320px;
+            margin: 0 auto;
         }
     </style>
 </head>
@@ -16,15 +16,86 @@
         <canvas id="life" width="480px" height="320px"></canvas>
     </div>
     <script>
-        var message = "message";
-        var interval = 2000;
-        window.onload =
-        function cycle(){
-            setInterval(lifeCycle, interval);
+        Array.create = function (m, n){
+            var i, j, row, array = [];
+            for(i = 0; i < m; i++) {
+                row = [];
+                for(j = 0; j < n; j++) {
+                    row[j] = 0;
+                }
+                array[i] = row;
+            }
+            return array;
         };
+        Array.fillRandom = function (array){
+            var i, j, row;
+            for(i = 0; i < array.length; i++) {
+                row = array[i];
+                for(j = 0; j < row.length; j++) {
+                    row[j] = (Math.random()>0.5) ? Life.ALIVE : Life.DEAD;
+                }
+                array[i] = row;
+            }
+        };
+        Array.drawOnCanvas = function(array, context){
+            var i, j, row;
+            for(i = 0; i < array.length; i++) {
+                row = array[i];
+                for(j = 0; j < row.length; j++) {
+                    if(row[j]==Life.ALIVE){
+                        context.fillStyle = Life.colorAlive;
+                    }else{
+                        context.fillStyle = Life.colorDead;
+                    }
+                    context.fillRect(Life.CELL_GAP+i*(Life.CELL_SIZE+2*Life.CELL_GAP),Life.CELL_GAP+j*(Life.CELL_SIZE+2*Life.CELL_GAP), Life.CELL_SIZE, Life.CELL_SIZE);
+                }
+            }
+        };
+
+        var message = "message";
+        var tick = 200;
+
+        var Life = {};
+
+        Life.CELL_SIZE = 8;
+        Life.CELL_GAP = 1;
+        Life.WIDTH = 48;
+        Life.HEIGHT = 24;
+        Life.DEAD = 0;
+        Life.ALIVE = 1;
+        Life.STOPPED = 0;
+        Life.RUNNING = 1;
+        Life.MINIMUM_NEIGHBORS = 2;
+        Life.MAXIMUM_NEIGHBORS = 3;
+        Life.SPAWN_COUNT = 3;
+
+        Life.colorBack = "#031634";
+        Life.colorDead = "#033649";
+        Life.colorAlive = "#036564";
+
+        Life.state = Life.STOPPED;
+        Life.interval = null; //the object returned by "setInterval" used to stop the timer
+
+        Life.canvas;
+        Life.context;
+
+
+
         function lifeCycle(){
-            alert(message);
+            Array.fillRandom(Life.grid);
+            Array.drawOnCanvas(Life.grid, Life.context);
         }
+
+        window.onload =
+        function init(){
+            Life.grid = Array.create(Life.HEIGHT, Life.WIDTH);
+            Life.canvas = document.getElementById("life");
+            Life.context = Life.canvas.getContext("2d");
+            Life.context.fillStyle = Life.colorBack;
+            Life.context.fillRect(0,0,Life.context.width,Life.context.height);
+            setInterval(lifeCycle, tick);
+        };
+
     </script>
 </body>
 </html>
