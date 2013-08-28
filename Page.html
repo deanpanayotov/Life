@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link href='http://fonts.googleapis.com/css?family=Ubuntu:400,300italic' rel='stylesheet' type='text/css'>
+    <style>
+        body {background-color: #031634; text-align: center; color: #E8DDCB; font-family: Ubuntu, serif; }
+        #canvasCenter {
+            width: 480px;
+            height:320px;
+            margin: 0px auto;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvasCenter">
+        <canvas id="life" width="480px" height="320px"></canvas>
+    </div>
+    <script>
+        var message = "message";
+        var interval = 2000;
+        window.onload =
+        function cycle(){
+            setInterval(lifeCycle, interval);
+        };
+        function lifeCycle(){
+            alert(message);
+        }
+    </script>
+</body>
+</html>
