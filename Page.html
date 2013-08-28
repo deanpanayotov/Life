@@ -18,37 +18,23 @@
     <script>
         var Grid = {};
         Grid.create = function (m, n){
-            var i, j, row, array = [];
+            var i, j, column, array = [];
             for(i = 0; i < m; i++) {
-                row = [];
+                column = [];
                 for(j = 0; j < n; j++) {
-                    row[j] = 0;
+                    column[j] = Life.DEAD;
                 }
-                array[i] = row;
+                array[i] = column;
             }
             return array;
         };
-        Grid.fillRandom = function (){
-            console.log("fillRandom");
-            Life.swipe = false;
-            var i, j, row;
-            for(i = 0; i < Life.grid.length; i++) {
-                row = Life.grid[i];
-                for(j = 0; j < row.length; j++) {
-                    row[j] = (Math.random()>0.5) ? Life.ALIVE : Life.DEAD;
-                }
-                Life.grid[i] = row;
-            }
-            Grid.makeSnapshot();
-            Life.skipTicks = 20;
-            Life.shiftDown();
-        };
+
         Grid.drawOnCanvas = function(){
-            var i, j, row;
+            var i, j, column;
             for(i = 0; i < Life.grid.length; i++) {
-                row = Life.grid[i];
-                for(j = 0; j < row.length; j++) {
-                    if(row[j]==Life.ALIVE){
+                column = Life.grid[i];
+                for(j = 0; j < column.length; j++) {
+                    if(column[j]==Life.ALIVE){
                         Life.context.fillStyle = Life.COLOR_ALIVE;
                     }else{
                         Life.context.fillStyle = Life.COLOR_DEAD;
@@ -57,10 +43,10 @@
                 }
             }
         };
-        Grid.makeSnapshot = function(){
-            Life.snapshot = [];
-            for(var i = 0; i < Life.grid.length; i++) {
-                Life.snapshot[i]=Life.grid[i].slice(0); //cloning the array...
+
+        Grid.clone = function(from, to){
+            for(var i = 0; i < from.length; i++) {
+                to[i]=from[i].slice(0); //cloning the array...
             }
         };
 
@@ -70,22 +56,21 @@
             for(i = 0;i< Life.grid.length; i++){
                 column = Life.grid[i];
                 j = Life.pile[i];
-                while(Life.grid[i][j] == 1){
+                while(Life.grid[i][j] == Life.ALIVE){
                     j--;
                 }
                 Life.pile[i] = j;
                 j--; //skip the first empty cell
                 while(j >= 0){
-                    if(Life.grid[i][j]==1){
-                        Life.grid[i][j]=0;
-                        Life.grid[i][j+1]=1;
+                    if(Life.grid[i][j]==Life.ALIVE){
+                        Life.grid[i][j]=Life.DEAD;
+                        Life.grid[i][j+1]=Life.ALIVE;
                         changes++;
                     }
                     j--;
                 }
             }
             if(changes == 0){
-                Life.down = false;
                 Life.skipTicks = 20;
                 Life.shiftUp();
             }
@@ -112,21 +97,19 @@
                         break;
                     }
                     changes++;
-                    originalColumn[originalCell]=0;
-                    originalColumn[originalCell-1]=1; //shift the corresponding cell 1 up
+                    originalColumn[originalCell]=Life.DEAD;
+                    originalColumn[originalCell-1]=Life.ALIVE; //shift the corresponding cell 1 up
                     originalIndex=originalCell+1;
                     snapshotIndex=snapshotCell+1;
                 }
                 Life.grid[i]=originalColumn;
             }
             if(changes == 0){
-                Life.up = false;
                 Life.skipTicks = 20;
-                Life.swipeLine = -1;
-                Life.swipe = true;
-                console.log("exit shiftUp");
+                Life.swipe();
             }
         };
+
         Grid.nextCell = function(column, offset){
             for(var i=offset;i<column.length;i++){
                 if(column[i]==1){
@@ -135,6 +118,7 @@
             }
             return -1;
         };
+
         Grid.swipe = function(){
             var column;
             if(Life.swipeLine!=-1){
@@ -148,21 +132,17 @@
             Life.swipeLine++;
             if(Life.swipeLine!=Life.WIDTH){
                 column = Life.grid[Life.swipeLine];
-                console.log("LINE: "+column);
                 for(var j=0;j<Life.HEIGHT;j++){
                     column[j]=Life.ALIVE;
                 }
                 Life.grid[Life.swipeLine]=column;
             }else{
-                Life.swipe=false;
-                Grid.makeSnapshot();
                 Life.skipTicks = 20;
                 Life.shiftDown();
             }
         };
 
         var message = "message";
-        var tick = 50;
 
         var Life = {};
 
@@ -170,10 +150,9 @@
         Life.CELL_GAP = 1;
         Life.WIDTH = 48;
         Life.HEIGHT = 24;
+        Life.TICK = 50;
         Life.DEAD = 0;
         Life.ALIVE = 1;
-        Life.STOPPED = 0;
-        Life.RUNNING = 1;
         Life.MINIMUM_NEIGHBORS = 2;
         Life.MAXIMUM_NEIGHBORS = 3;
         Life.SPAWN_COUNT = 3;
@@ -184,12 +163,13 @@
         Life.COLOR_ALIVE = "#036564";
 
         Life.skipTicks = 0;
-        Life.down = false;
-        Life.up = false;
-        Life.swipe = false;
-        Life.randomize = false;
+        Life.IDLE = 0;
+        Life.LIVE = 1;
+        Life.DOWN = 2;
+        Life.UP = 3;
+        Life.SWIPE = 4;
+        Life.state = -1;
 
-        Life.state = Life.STOPPED;
         Life.interval = null; //the object returned by "setInterval" used to stop the timer
 
         Life.canvas;
@@ -200,30 +180,51 @@
         Life.snapshot = []; //holds the snapshot of the current grid state to be restored later
 
         Life.shiftDown = function(){
-            Life.down = true;
+            Grid.clone(Life.grid, Life.snapshot);
+            Life.state = Life.DOWN;
             Life.pile = [];
             for(i = 0; i < Life.WIDTH; i++){
                 Life.pile[i] = Life.HEIGHT-1;
             }
         };
         Life.shiftUp = function(){
-            Life.up = true;
+            Life.state = Life.UP;
         };
-
+        Life.swipe = function(){
+            Life.state = Life.SWIPE;
+            Life.swipeLine = -1;
+        }
 
         function lifeCycle(){
             console.log("lifeCycle");
             if(Life.skipTicks>0){
                 Life.skipTicks--;
                 return;
-            }else if(Life.swipe){
-                Grid.swipe();
-            }else if(Life.down){
-                Grid.shiftDown();
-            }else if(Life.up){
-                Grid.shiftUp();
+            }else{
+                switch(Life.state){
+                    case Life.IDLE:{
+                        //do nothing;
+                        break;
+                    }
+                    case Life.LIVE:{
+                        //TODO not implemented
+                        break;
+                    }
+                    case Life.DOWN:{
+                        Grid.shiftDown();
+                        break;
+                    }
+                    case Life.UP:{
+                        Grid.shiftUp();
+                        break;
+                    }
+                    case Life.SWIPE:{
+                        Grid.swipe();
+                        break;
+                    }
+                }
+                Grid.drawOnCanvas();
             }
-            Grid.drawOnCanvas();
         }
 
         window.onload =
@@ -233,9 +234,8 @@
             Life.context = Life.canvas.getContext("2d");
             Life.context.fillStyle = Life.COLOR_BACKGROUND;
             Life.context.fillRect(0,0,Life.context.width,Life.context.height);
-            //Grid.fillRandom();
-            Life.swipe = true;
-            setInterval(lifeCycle, tick);
+            Life.state = Life.SWIPE;
+            setInterval(lifeCycle, Life.TICK);
         };
     </script>
 </body>
