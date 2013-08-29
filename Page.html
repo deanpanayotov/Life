@@ -1,20 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <link href='http://fonts.googleapis.com/css?family=Ubuntu:400,300italic' rel='stylesheet' type='text/css'>
     <style>
-        body {background-color: #031634; text-align: center; color: #E8DDCB; font-family: Ubuntu, serif; }
-        #canvasCenter {
-            width: 880px;
-            height: 400px;
-            margin: 0 auto;
-        }
+        body {background-color: #031634; color: #E8DDCB; text-align: center}
     </style>
 </head>
 <body>
-    <div id="canvasCenter">
-        <canvas id="life" width="880px" height="400px"></canvas>
-    </div>
+    <canvas id="life"></canvas>
     <script>
 
         var Grid = {};
@@ -52,7 +44,6 @@
         };
 
         Grid.shiftDown = function(){
-            console.log("shiftDown");
             var i, j, column, changes = 0;
             for(i = 0;i< Life.grid.length; i++){
                 column = Life.grid[i];
@@ -78,22 +69,19 @@
         };
 
         Grid.shiftUp = function(){
-            console.log("shiftUp");
             var i, originalColumn,
                     snapshotColumn,
                     originalCell,
                     snapshotCell,
                     originalIndex,
                     snapshotIndex,
-                    count,
                     changes = 0;
             for(i = 0;i< Life.grid.length; i++){
                 originalColumn = Life.grid[i];
                 snapshotColumn = Life.snapshot[i];
                 originalIndex = 0;
                 snapshotIndex = 0;
-                count = Grid.countCells(snapshotColumn);
-                for(var q=0;q<count;q++){
+                for(var q=0;q<Life.count[i];q++){
                     originalCell = Grid.nextCell(originalColumn,originalIndex);
                     snapshotCell = Grid.nextCell(snapshotColumn,snapshotIndex);
                     if(originalCell == snapshotCell){
@@ -111,19 +99,10 @@
                 if(Life.swipeLine!=-1){
                     Life.state = Life.SWIPE;
                 }else{
+                    Life.updateTick(Life.NORMAL_TICK);
                     Life.state = Life.LIVE;
                 }
             }
-        };
-
-        Grid.countCells = function(column) {
-            var count =0;
-            for(var i=0; i<column.length;i++){
-                if(column[i]==Life.ALIVE){
-                    count++;
-                }
-            }
-            return count;
         };
 
         Grid.nextCell = function(column, offset){
@@ -155,6 +134,7 @@
             }else{
                 Life.swipeLine = -1;
                 Life.state=Life.LIVE;
+                Life.updateTick(Life.NORMAL_TICK);
             }
         };
 
@@ -164,7 +144,7 @@
 
             for (var i = 0; i < Life.WIDTH; i++) {
                 for (var j = 0; j < Life.HEIGHT; j++) {
-                    neighbours = calculateNeighbours(i, j);
+                    neighbours = Grid.calculateNeighbours(i, j);
                     if (Life.grid[i][j] !== Life.DEAD) {
                         if ((neighbours >= Life.MINIMUM_NEIGHBORS) &&
                                 (neighbours <= Life.MAXIMUM_NEIGHBORS)) {
@@ -178,7 +158,6 @@
                 }
             }
             if(Grid.compare(nextGenerationGrid, Life.previousGrid)){
-                Life.skipTicks=20;
                 Life.swipe();
             }
             Grid.clone(Life.grid, Life.previousGrid);
@@ -197,9 +176,9 @@
                 }
             }
             return true;
-        }
+        };
 
-        calculateNeighbours = function(x, y) {
+        Grid.calculateNeighbours = function(x, y) {
             var total = 0;
             for (var i = -1; i <= 1; i++) {
                 for (var j = -1; j <= 1; j++) {
@@ -218,11 +197,13 @@
 
         var Life = {};
 
-        Life.CELL_SIZE = 8;
-        Life.CELL_GAP = 1;
-        Life.WIDTH = 88;
-        Life.HEIGHT = 40;
-        Life.TICK = 50;
+        Life.CELL_SIZE = 4;
+        Life.CELL_GAP = 0.5;
+        Life.WIDTH = 120;
+        Life.HEIGHT = 60;
+        Life.NORMAL_TICK = 50;
+        Life.FAST_TICK = 25;
+        Life.TICK = Life.NORMAL_TICK;
         Life.SPAWN_COEF = 0.4;
         Life.DEAD = 0;
         Life.ALIVE = 1;
@@ -250,9 +231,18 @@
         Life.canvas;
         Life.context;
 
-        Life.pile = []; //holds the pile size for each column
+        Life.pile = []; //holds the pile top position for each column
+        Life.count = []; //holds cell count for each column
         Life.swipeLine = -1;
         Life.snapshot = []; //holds the snapshot of the current grid state to be restored later
+
+        Life.updateTick = function(tick){
+            if(Life.TICK!=tick){
+                Life.TICK = tick;
+                clearInterval(Life.interval);
+                Life.interval = setInterval(lifeCycle, Life.TICK);
+            }
+        };
 
         Life.shiftDown = function(){
             if(Life.state!=Life.UP){
@@ -263,20 +253,41 @@
             for(i = 0; i < Life.WIDTH; i++){
                 Life.pile[i] = Life.HEIGHT-1;
             }
+            Life.updateTick(Life.FAST_TICK);
         };
+
         Life.shiftUp = function(){
-            Life.state = Life.UP;
+          Life.calculateColumnCount();
+          Life.state = Life.UP;
+          Life.updateTick(Life.FAST_TICK);
         };
+
+        Life.calculateColumnCount = function(){
+            for(var i=0;i<Life.WIDTH;i++){
+                Life.count[i] = Life.countCells(Life.grid[i]);
+            }
+        };
+
+        Life.countCells = function(column) {
+            var count =0;
+            for(var i=0; i<column.length;i++){
+                if(column[i]==Life.ALIVE){
+                    count++;
+                }
+            }
+            return count;
+        };
+
         Life.swipe = function(){
+            Life.skipTicks = 30;
             Life.state = Life.SWIPE;
             Life.swipeLine = -1;
-        }
+            Life.updateTick(Life.FAST_TICK);
+        };
 
         function lifeCycle(){
-            console.log("lifeCycle state: "+Life.state);
             if(Life.skipTicks>0){
                 Life.skipTicks--;
-                return;
             }else{
                 switch(Life.state){
                     case Life.IDLE:{
@@ -304,13 +315,13 @@
             }
         }
 
-        handleClick = function(){
+        Life.handleClick = function(){
             switch(Life.state){
                 case Life.IDLE:{
                     Life.interval = setInterval(lifeCycle, Life.TICK);
                 }
                 case Life.DOWN:{
-                    Life.state = Life.UP;
+                    Life.shiftUp();
                     break;
                 }
                 default:{
@@ -319,14 +330,16 @@
                 }
 
             }
-        }
+        };
 
         window.onload =
         function init(){
             Life.grid = Grid.create(Life.WIDTH, Life.HEIGHT);
             Life.previousGrid = Grid.create(Life.WIDTH, Life.HEIGHT);
             Life.canvas = document.getElementById("life");
-            Life.canvas.addEventListener('click', handleClick, false);
+            Life.canvas.width = Life.WIDTH*(Life.CELL_SIZE+2*Life.CELL_GAP);
+            Life.canvas.height = Life.HEIGHT*(Life.CELL_SIZE+2*Life.CELL_GAP);
+            Life.canvas.addEventListener('click', Life.handleClick, false);
             Life.context = Life.canvas.getContext("2d");
             Life.context.fillStyle = Life.COLOR_BACKGROUND;
             Life.context.fillRect(0,0,Life.context.width,Life.context.height);
